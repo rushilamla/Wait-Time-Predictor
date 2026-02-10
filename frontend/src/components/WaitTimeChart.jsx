@@ -56,8 +56,8 @@ const WaitTimeChart = ({ prediction, historicalData }) => {
       {
         label: 'Expected Wait Time',
         data: waitTimes,
-        borderColor: 'rgb(59, 130, 246)', // blue-500
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: 'rgb(1, 17, 44)', // blue-500
+        backgroundColor: 'rgba(85, 93, 107, 0.1)',
         borderWidth: 2,
         fill: true,
         tension: 0.4,
