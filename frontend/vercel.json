@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR-RENDER-BACKEND-URL.onrender.com/:path*"
+      "destination": "https://wait-time-predictior.onrender.com/:path*"
     }
   ]
 }
