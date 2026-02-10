@@ -55,7 +55,11 @@ const WaitTimeChart = ({ prediction, historicalData }) => {
     datasets: [
       {
         label: 'Expected Wait Time',
-        data: waitTimes,
+        data: queueSizes.map((q, index) => ({
+          x: q,
+          y: waitTimes[index],
+        })),
+
         borderColor: 'rgb(1, 17, 44)', // blue-500
         backgroundColor: 'rgba(85, 93, 107, 0.1)',
         borderWidth: 2,
@@ -69,23 +73,20 @@ const WaitTimeChart = ({ prediction, historicalData }) => {
 
   // Add prediction point if available
   if (prediction) {
-    chartData.datasets.push({
-      label: 'Your Prediction',
-      data: [
-        ...Array(prediction.queue_size - 1).fill(null),
-        prediction.predicted_wait_time_minutes,
-      ],
-      borderColor: 'rgb(34, 197, 94)', // green-500
-      backgroundColor: 'rgba(34, 197, 94, 0.8)',
-      borderWidth: 0,
-      pointRadius: 8,
-      pointHoverRadius: 10,
-      pointBackgroundColor: 'rgb(34, 197, 94)',
-      pointBorderColor: '#fff',
-      pointBorderWidth: 2,
-      showLine: false,
-    });
-  }
+  chartData.datasets.push({
+    label: 'Your Prediction',
+    data: [{
+      x: prediction.queue_size,
+      y: prediction.predicted_wait_time_minutes,
+    }],
+    borderColor: 'rgb(34, 197, 94)',
+    backgroundColor: 'rgb(34, 197, 94)',
+    pointRadius: 8,
+    pointHoverRadius: 10,
+    showLine: false,
+  });
+}
+
 
   const options = {
     responsive: true,
