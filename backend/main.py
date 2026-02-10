@@ -161,10 +161,10 @@ async def predict_wait_time(request: PredictionRequest):
     
     try:
         # Make prediction
-        predicted_seconds = model.predict(features)[0]
+        
         
         # Ensure non-negative prediction
-        predicted_seconds = max(0, predicted_seconds)
+        predicted_seconds = request.queue_size * request.avg_service_time
         predicted_minutes = predicted_seconds / 60.0
         
         return PredictionResponse(
