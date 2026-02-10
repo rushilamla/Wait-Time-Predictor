@@ -19,7 +19,17 @@ app = FastAPI(
     description="API for predicting waiting times based on queue size",
     version="1.0.0"
 )
+origins = [
+    "https://wait-time-predictor.vercel.app"  # your frontend URL
+]
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
