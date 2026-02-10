@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PredictionForm from './components/PredictionForm';
 import PredictionResult from './components/PredictionResult';
 import WaitTimeChart from './components/WaitTimeChart';
-import { predictWaitTime } from './services/api';
+import { predictWaitTimeFromImage } from './services/api';
 
 /**
  * Main application component.
@@ -18,7 +18,11 @@ function App() {
     setPrediction(null);
 
     try {
-      const result = await predictWaitTime(formData);
+      const result = await predictWaitTimeFromImage(
+        formData.image,
+        formData.avg_service_time,
+        formData.arrival_rate
+      );
 
       if (result.success) {
         setPrediction(result.data);

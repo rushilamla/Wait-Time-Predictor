@@ -3,7 +3,7 @@ FastAPI application for Wait Time Predictor.
 Provides REST API endpoints for prediction and model training.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -11,6 +11,7 @@ import os
 
 from backend.model import model_exists, load_model, save_model
 from backend.train import train_and_save_model
+from backend.vision import estimate_queue_size_from_image
 
 
 # Initialize FastAPI app
@@ -19,18 +20,9 @@ app = FastAPI(
     description="API for predicting waiting times based on queue size",
     version="1.0.0"
 )
-origins = [
-    "https://wait-time-predictor.vercel.app"  # your frontend URL
-]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-# Enable CORS for frontend
+# Enable CORS for frontend (for local dev and simple deployments).
+# If you proxy through Vercel (/api) you can tighten this later.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, specify frontend URL
@@ -55,6 +47,9 @@ class PredictionResponse(BaseModel):
     queue_size: int
     avg_service_time: float
     arrival_rate: Optional[float] = None
+    queue_source: Optional[str] = Field(
+        None, description="Where queue_size came from (manual/image)"
+    )
 
 
 class TrainResponse(BaseModel):
@@ -160,11 +155,11 @@ async def predict_wait_time(request: PredictionRequest):
     features = [[request.queue_size, request.avg_service_time, arrival_rate]]
     
     try:
-        # Make prediction
-        
-        
+        # Make prediction using trained model
+        predicted_seconds = float(model.predict(features)[0])
+
         # Ensure non-negative prediction
-        predicted_seconds = request.queue_size * request.avg_service_time
+        predicted_seconds = max(0.0, predicted_seconds)
         predicted_minutes = predicted_seconds / 60.0
         
         return PredictionResponse(
@@ -173,12 +168,73 @@ async def predict_wait_time(request: PredictionRequest):
             queue_size=request.queue_size,
             avg_service_time=request.avg_service_time,
             arrival_rate=arrival_rate if request.arrival_rate is not None else None
+            ,
+            queue_source="manual"
         )
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Prediction failed: {str(e)}"
         )
+
+
+@app.post("/predict-image", response_model=PredictionResponse)
+async def predict_wait_time_from_image(
+    image: UploadFile = File(..., description="Queue image (jpg/png)"),
+    avg_service_time: float = Form(..., gt=0),
+    arrival_rate: Optional[float] = Form(None),
+):
+    """
+    Predict waiting time from an uploaded queue image.
+
+    - Detects number of people in the image (estimated queue size)
+    - Runs the same regression model for wait-time prediction
+    """
+    global model
+
+    if model is None:
+        ensure_model_exists()
+    if model is None:
+        raise HTTPException(status_code=500, detail="Model not available.")
+
+    if arrival_rate is not None and arrival_rate <= 0:
+        raise HTTPException(status_code=400, detail="arrival_rate must be > 0")
+
+    content_type = (image.content_type or "").lower()
+    if not (content_type.startswith("image/")):
+        raise HTTPException(status_code=400, detail="Please upload a valid image.")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty image upload.")
+
+    # Estimate queue size from image
+    queue_size = estimate_queue_size_from_image(image_bytes)
+    if queue_size <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Could not detect people in the image. Try a clearer photo.",
+        )
+
+    # Default arrival rate if not provided
+    ar = arrival_rate if arrival_rate is not None else 2.0
+
+    features = [[queue_size, float(avg_service_time), float(ar)]]
+    try:
+        predicted_seconds = float(model.predict(features)[0])
+        predicted_seconds = max(0.0, predicted_seconds)
+        predicted_minutes = predicted_seconds / 60.0
+
+        return PredictionResponse(
+            predicted_wait_time_seconds=round(predicted_seconds, 2),
+            predicted_wait_time_minutes=round(predicted_minutes, 2),
+            queue_size=int(queue_size),
+            avg_service_time=float(avg_service_time),
+            arrival_rate=ar if arrival_rate is not None else None,
+            queue_source="image",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 @app.post("/train", response_model=TrainResponse)

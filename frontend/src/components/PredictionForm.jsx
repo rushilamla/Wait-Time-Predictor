@@ -5,12 +5,13 @@ import { useState } from 'react';
  */
 const PredictionForm = ({ onPredict, isLoading }) => {
   const [formData, setFormData] = useState({
-    queue_size: '',
+    image: null,
     avg_service_time: '',
     arrival_rate: '',
   });
 
   const [errors, setErrors] = useState({});
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,11 +28,20 @@ const PredictionForm = ({ onPredict, isLoading }) => {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setFormData((prev) => ({ ...prev, image: file }));
+    if (errors.image) setErrors((prev) => ({ ...prev, image: '' }));
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.queue_size || formData.queue_size <= 0) {
-      newErrors.queue_size = 'Queue size must be greater than 0';
+    if (!formData.image) {
+      newErrors.image = 'Please upload a queue image';
     }
 
     if (!formData.avg_service_time || formData.avg_service_time <= 0) {
@@ -53,42 +63,47 @@ const PredictionForm = ({ onPredict, isLoading }) => {
       return;
     }
 
-    const predictionData = {
-      queue_size: parseInt(formData.queue_size),
+    onPredict({
+      image: formData.image,
       avg_service_time: parseFloat(formData.avg_service_time),
-      ...(formData.arrival_rate && {
-        arrival_rate: parseFloat(formData.arrival_rate),
-      }),
-    };
-
-    onPredict(predictionData);
+      arrival_rate: formData.arrival_rate ? parseFloat(formData.arrival_rate) : undefined,
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label
-          htmlFor="queue_size"
+          htmlFor="image"
           className="block text-sm font-medium text-gray-300 mb-2"
         >
-          Queue Size <span className="text-red-400">*</span>
+          Upload Queue Image <span className="text-red-400">*</span>
         </label>
         <input
-          type="number"
-          id="queue_size"
-          name="queue_size"
-          value={formData.queue_size}
-          onChange={handleChange}
-          min="1"
-          step="1"
+          type="file"
+          id="image"
+          name="image"
+          accept="image/*"
+          onChange={handleFileChange}
           required
           className={`w-full px-4 py-3 bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-100 ${
-            errors.queue_size ? 'border-red-500' : 'border-gray-700'
+            errors.image ? 'border-red-500' : 'border-gray-700'
           }`}
-          placeholder="Number of people in queue"
         />
-        {errors.queue_size && (
-          <p className="mt-1 text-sm text-red-400">{errors.queue_size}</p>
+        {errors.image && (
+          <p className="mt-1 text-sm text-red-400">{errors.image}</p>
+        )}
+        {previewUrl && (
+          <div className="mt-3">
+            <img
+              src={previewUrl}
+              alt="Queue preview"
+              className="w-full max-h-64 object-contain rounded-lg border border-gray-700"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              We’ll count people in the image to estimate queue size.
+            </p>
+          </div>
         )}
       </div>
 
