@@ -51,7 +51,6 @@ const WaitTimeChart = ({ prediction, historicalData }) => {
 
   // Prepare chart data
   const chartData = {
-    labels: queueSizes,
     datasets: [
       {
         label: 'Expected Wait Time',
@@ -136,6 +135,7 @@ const WaitTimeChart = ({ prediction, historicalData }) => {
     },
     scales: {
       x: {
+        type: 'linear',
         title: {
           display: true,
           text: 'Queue Size (people)',
